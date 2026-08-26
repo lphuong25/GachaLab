@@ -11,3 +11,5 @@ from .simulation_system import (
 )
 
 from .game import GachaGame
+from .banner import Banner
+
