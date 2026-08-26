@@ -1,14 +1,10 @@
 import random
 import numpy as np
 
+from .game import GachaGame
 from .gacha import get_pull_rate
 
-def first_ssr_pull(
-        base_rate,
-        soft_pity = 0,
-        soft_rate = 0.0,
-        hard_pity = 0
-):
+def first_ssr_pull(game: GachaGame):
     """
     Simulate pulls until get the first SSR
     and return pull number when get SSR"""
@@ -20,11 +16,11 @@ def first_ssr_pull(
         pull += 1
 
         rate = get_pull_rate(
-            base_rate = base_rate,
+            base_rate = game.base_rate,
             pull_number = pull,
-            soft_pity = soft_pity,
-            soft_rate = soft_rate,
-            hard_pity = hard_pity
+            soft_pity = game.soft_pity,
+            soft_rate = game.soft_rate,
+            hard_pity = game.hard_pity
         )
 
         if random.random() < rate:
@@ -35,19 +31,11 @@ Run a Monte Carlo simulation for the number
 of pulls required to obtain the first ssr
 """
 def monte_carlo(
-        base_rate,
-        simulations = 10_000,
-        soft_pity = 0,
-        soft_rate = 0.0,
-        hard_pity = 0
+        game: GachaGame,
+        simulations = 10_000
 ):
     results = [
-        first_ssr_pull(
-            base_rate = base_rate,
-            soft_pity = soft_pity,
-            soft_rate = soft_rate,
-            hard_pity = hard_pity
-        )
+        first_ssr_pull(game)
         for _ in range(simulations)
     ]
 
