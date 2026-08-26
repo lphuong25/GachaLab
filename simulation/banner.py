@@ -9,3 +9,12 @@ class Banner:
     guarantee_rate: float = 0.0
     pity_carries: bool = False
     guarantee_carries: bool = False
+
+def featured_probability (banner, guaranteed_featured = False):
+    """
+    Return the probability that an SSR is the featured character
+    """
+    if guaranteed_featured:
+        return 1.0
+
+    return banner.featured_rate
