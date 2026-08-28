@@ -6,3 +6,8 @@ from dataclasses import dataclass
 class BannerState:
     pity: int = 0
     guaranteed_featured: bool = False
+
+    # Reset pity when SSR appear
+    def reset_pity(self):
+        self.pity = 0
+        

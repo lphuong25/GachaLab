@@ -13,3 +13,4 @@ from .simulation_system import (
 from .game import GachaGame
 from .banner import Banner
 from .state import BannerState
+from .result import PullResult
