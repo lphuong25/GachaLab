@@ -1,4 +1,4 @@
-from data_loader import load_games, get_game_by_name
+from data.data_loader import load_games, get_game_by_name
 
 
 def test_load_games():
