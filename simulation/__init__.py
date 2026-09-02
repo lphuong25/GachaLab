@@ -21,3 +21,12 @@ from .analytics import (
     probability_from_budget,
     budget_for_probability
 )
+
+from .fairness import (
+    expected_pulls,
+    expected_cost,
+    worst_case_cost,
+    probability_target_costs,
+    analyze_game,
+    analyze_all
+)
