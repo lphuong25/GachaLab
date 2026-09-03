@@ -108,3 +108,88 @@ def analyze_all(games):
         analyze_game(game)
         for game in games
     ]
+
+# Build Fairness Index
+def normalize_lower_is_better(value, min_value, max_value):
+    if max_value == min_value:
+        return 100.0
+
+    return (max_value - value) / (max_value - min_value) * 100.0
+
+def calculate_fairness_scores(results):
+    """
+    Calculate 0-100 Fairness Score
+    
+    Lower expected cost, 90% success cost,
+    and worst-case cost are considered better.
+
+    The scoring system is the sum of 40% expected cost,
+    40% of 90% success rate and 20% of worst case
+    """
+    expected_costs = [
+        result["expected_cost"]
+        for result in results
+    ]
+
+    target_90_costs = [
+        result["target_cost"]["90%"]
+        for result in results
+    ]
+
+    worst_case_costs = [
+        result["worst_case_cost"]
+        for result in results
+        if result["worst_case_cost"] is not None
+    ]
+
+    min_expected = min(expected_costs)
+    max_expected = max(expected_costs)
+
+    min_90 = min(target_90_costs)
+    max_90 = max(target_90_costs)
+
+    min_worst = min(worst_case_costs)
+    max_worst = max(worst_case_costs)
+
+    scored_results = []
+
+    for result in results:
+        expected_score = normalize_lower_is_better(
+            result["expected_cost"],
+            min_expected,
+            max_expected
+        )
+        target_90_score = normalize_lower_is_better(
+            result["target_cost"]["90%"],
+            min_90,
+            max_90
+        )
+
+        if result["worst_case_cost"] is not None:
+            worst_score = normalize_lower_is_better(
+                result["worst_case_cost"],
+                min_worst,
+                max_worst
+            )
+        else:
+            worst_score = 0.0
+
+        fairness_score = (
+            expected_score * 0.40
+            + target_90_score * 0.40
+            + worst_score * 0.20
+        )
+
+        scored_result = result.copy()
+
+        scored_result["expected_cost_score"] = round(expected_score, 2)
+
+        scored_result["90_percent_score"] = round(target_90_score, 2)
+
+        scored_result["worst_case_score"] = round(worst_score, 2)       
+
+        scored_result["fairness_score"] = round(fairness_score, 2)    
+
+        scored_results.append(scored_result)
+
+    return scored_results 
