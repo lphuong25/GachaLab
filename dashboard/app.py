@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
 from data.data_loader import load_games
 from simulation.analytics import (
@@ -13,6 +14,7 @@ from simulation.fairness import (
     calculate_fairness_scores
 )
 
+from simulation.probability import generate_probability_curve
 # Page configuration
 st.set_page_config(
     page_title="GachaLab",
@@ -97,14 +99,29 @@ probability = probability_from_budget(
 col1, col2 = st.columns(2)
 
 col1.metric(
-    "Pulls",
-    pulls
+    "Pulls", pulls
 )
 
 col2.metric(
-    "SSR Probability",
-    f"{probability: .2%}"
+    "SSR Probability", f"{probability: .2%}"
 )
+
+if probability >= 0.90:
+    st.success(
+        f"With ${budget:.2f}, you have a {probability:.1%} chance "
+        f"of getting at least one SSR"
+    )
+
+elif probability >= 0.50:
+    st.warning(
+        f"With ${budget:.2f}, you have a {probability:.1%} chance "
+        f"of getting at least one SSR"
+    )
+else:
+    st.error(
+        f"With ${budget:.2f}, you only have a {probability:.1%} chance "
+        f"of getting at least one SSR"        
+    )
 
 # Show Fairness Score
 selected_result = next(
@@ -121,24 +138,253 @@ st.metric(
 )
 
 st.write(
-    "The score combines expected cost, 90% sucess cost, " \
-    "and worst-case cost"
+    "The GachaLab Fairness Score measures how favorable a game's "
+    "gacha system is relative to the other games in the dataset. "
+    "Lower costs receive higher scores."
 )
 
+with st.expander("How is the Fairness Score calculated?"):
+    st.write("""
+    The Fairness Score is based on three factors:
+
+    • Expected Cost = 40%
+    
+    How much a player is expected to spend to obtain an SSR.
+
+    • 90% Success Cost = 40%
+    
+    How much a player needs to spend to have a 90% chance of
+    obtaining at least one SSR.
+
+    • Worst-Case Cost = 20%
+    
+    The maximum amount a player would need to spend before
+    reaching the hard pity guarantee.
+
+    Lower costs result in higher scores.
+    """)
+
 # display components
+st.subheader("Fairness Metrics")
+
 col1, col2, col3 = st.columns(3)
 
 col1.metric(
-    "Expected Cost Score",
-    f"{selected_result['expected_cost_score']: .2f}"
+    "Expected Cost",
+    f"${selected_result['expected_cost']:.2f}"
 )
 
 col2.metric(
-    "90% Sucess Score",
-    f"{selected_result['90_percent_score']: .2f}"
+    "Cost for 90% Chance",
+    f"${selected_result['target_cost']['90%']:.2f}"
+)
+
+if selected_result["worst_case_cost"] is not None:
+    col3.metric(
+        "Worst-Case Cost",
+        f"${selected_result['worst_case_cost']:.2f}"
+    )
+else:
+    col3.metric(
+        "Worst-Case Cost",
+        "No hard pity"
+    )
+
+# Generate probability chart 
+st.header("SSR Probability by Pulls")
+
+pulls, probabilities = generate_probability_curve(
+    selected_game,
+    max_pulls=selected_game.hard_pity
+        if selected_game.hard_pity > 0 
+        else 300,
+    step = 1
+)
+
+probability_df = pd.DataFrame({
+    "Pulls": pulls,
+    "SSR Probability": probabilities
+})
+
+fig = px.line(
+    probability_df,
+    x="Pulls",
+    y="SSR Probability",
+    title=f"{selected_game.name}'s SSR Probability"
+)
+
+# Adding horizontal reference lines for each threshold
+fig.add_hline(
+    y=0.50,
+    line_dash="dash",
+    line_color="red",
+    annotation_text="50%"
+)
+
+fig.add_hline(
+    y=0.75,
+    line_dash="dash",
+    line_color="red",
+    annotation_text="75%"
+)
+
+fig.add_hline(
+    y=0.90,
+    line_dash="dash",
+    line_color="red",
+    annotation_text="90%"
+)
+
+fig.add_hline(
+    y=0.95,
+    line_dash="dash",
+    line_color="red",
+    annotation_text="95%"
+)
+
+fig.update_yaxes(
+    tickformat = ".0%",
+    range = [0, 1]
+)
+
+fig.update_layout(
+    xaxis_title = "Number of Pulls",
+    yaxis_title = "Probability of at least one SSR"
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
+
+# Cost of reaching each threshold
+st.header("Cost to Reach an SSR Probability")
+
+selected_result = next(
+    result for result in scored_results
+    if result["name"] == selected_game.name
+)
+
+target_costs = selected_result["target_cost"]
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric(
+    "50% Chance", f"${target_costs['50%']:.2f}"
+)
+
+col2.metric(
+    "75% Chance", f"${target_costs['75%']:.2f}"
 )
 
 col3.metric(
-    "Worst-case Score",
-    f"{selected_result['worst_case_score']: .2f}"
+    "90% Chance", f"${target_costs['90%']:.2f}"
 )
+
+col4.metric(
+    "95% Chance", f"${target_costs['95%']:.2f}"
+)
+
+# Game comparision chart
+st.header("Fairness Comparision")
+
+show_games = st.multiselect(
+    "Compare games",
+    game_names,
+    default=game_names
+)
+
+comparison_df = pd.DataFrame([
+    {
+        "Game": result["name"],
+        "Fairness Score": result["fairness_score"]
+    }
+    for result in scored_results
+    if result["name"] in show_games
+])
+
+comparison_df = comparison_df.sort_values(
+    "Fairness Score",
+    ascending=True
+)
+
+fig_comparision = px.bar(
+    comparison_df,
+    x="Fairness Score",
+    y="Game",
+    orientation="h",
+    title="GachaLab Fairness Score by Game"
+)
+
+fig_comparision.update_xaxes(
+    range=[0, 100]
+)
+
+fig_comparision.update_layout(
+    xaxis_title = "Fairness Score",
+    yaxis_title="Game"
+)
+
+st.plotly_chart(
+    fig_comparision,
+    use_container_width=True
+)
+
+score = selected_result["fairness_score"]
+
+# Verdict
+if score >= 80:
+    verdict = "🟢 Relatively Favorable"
+    explanation = (
+        "This game scores relatively well compared with the "
+        "other games analyzed by GachaLab."
+    )
+elif score >= 60:
+    verdict = "🟡 Average"
+    explanation = (
+        "This game's gacha system falls around the middle "
+        "of the games analyzed by GachaLab."
+    )
+elif score >= 40:
+    verdict = "🟠 Relatively Expensive"
+    explanation = (
+        "This game's gacha system is less favorable compared "
+        "with the other games analyzed."
+    )
+else:
+    verdict = "🔴 Very Expensive"
+    explanation = (
+        "This game has relatively high acquisition costs "
+        "compared with the other games analyzed."
+    )
+
+st.subheader(f"Verdict: {verdict}")
+st.write(explanation)
+
+# Add ranking table
+st.subheader("Fairness Ranking")
+
+ranking_df = pd.DataFrame([
+    {
+        "Rank": index + 1,
+        "Game": result["name"],
+        "Fairness Score": result["fairness_score"],
+        "Expected Cost": result["expected_cost"],
+        "90% Success Cost": result["target_cost"]["90%"],
+        "Worst-Case Cost": result["worst_case_cost"]
+    }
+    for index, result in enumerate(
+        sorted(
+            scored_results,
+            key=lambda x: x["fairness_score"],
+            reverse=True
+        )
+    )
+])
+
+st.dataframe(
+    ranking_df,
+    use_container_width=True,
+    hide_index=True
+)
+
