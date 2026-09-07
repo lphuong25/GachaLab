@@ -14,7 +14,10 @@ from simulation.fairness import (
     calculate_fairness_scores
 )
 
-from simulation.probability import generate_probability_curve
+from simulation.probability import (
+    probability_with_pity,
+    generate_probability_curve)
+
 # Page configuration
 st.set_page_config(
     page_title="GachaLab",
@@ -76,7 +79,16 @@ col4.metric(
 )
 
 # Add budget
-st.header("Budget analysis")
+st.header("Pulling Budget")
+
+# Add saved pull and calculate it with the purchased ones
+saved_pulls = st.slider(
+    "How many pulls have you already saved?",
+    min_value=0,
+    max_value=1000,
+    value=0,
+    step=1
+)
 
 budget = st.slider(
     "How much are you willing to spend?",
@@ -86,26 +98,99 @@ budget = st.slider(
     step = 5.0
 )
 
-pulls = pulls_from_budget(
+paid_pulls = pulls_from_budget(
     selected_game,
     budget
 )
 
-probability = probability_from_budget(
+total_pulls = saved_pulls + paid_pulls
+
+probability = probability_with_pity(
     selected_game,
-    budget
+    total_pulls
 )
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 col1.metric(
-    "Pulls", pulls
+    "Saved Pulls", saved_pulls
 )
 
 col2.metric(
+    "Paid Pulls", paid_pulls
+)
+
+col3.metric(
+    "Total Pulls", total_pulls
+)
+st.metric(
     "SSR Probability", f"{probability: .2%}"
 )
 
+# Hard pity information
+if selected_game.hard_pity > 0:
+
+    pulls_to_pity = max(
+        selected_game.hard_pity - total_pulls,
+        0
+    )
+
+    cost_to_pity = pulls_to_pity * selected_game.cost_per_pull
+
+    if pulls_to_pity == 0:
+        st.success(
+            "🎉 You have reached the hard pity threshold!"
+        )
+    else:
+        st.info(
+            f"You are {pulls_to_pity} pulls away "
+            f"from hard pity."
+        )
+
+        st.write(
+            f"Estimated additional cost to reach hard pity: "
+            f"**${cost_to_pity:.2f}**"
+        )
+
+else:
+
+    st.info(
+        "This game does not have a hard pity value "
+        "in the current dataset."
+    )
+
+# Progress bar
+if selected_game.hard_pity > 0:
+
+    pity_progress = min(
+        total_pulls / selected_game.hard_pity,
+        1.0
+    )
+
+    st.progress(
+        pity_progress,
+        text=f"Pity Progress: {total_pulls} / {selected_game.hard_pity}"
+    )
+
+with st.expander("How does Pulling Budget work?"):
+
+    st.write(
+        """
+        Pulling Budget combines pulls you have already saved
+        with pulls you purchase from your budget.
+
+        Total Pulls = Saved Pulls + Paid Pulls
+
+        The resulting total is then used to calculate your
+        probability of obtaining at least one SSR.
+
+        If the game has a hard pity system, GachaLab also
+        calculates how many additional pulls and how much
+        money would be required to reach the hard pity threshold.
+        """
+    )
+
+# Probability verdict message
 if probability >= 0.90:
     st.success(
         f"With ${budget:.2f}, you have a {probability:.1%} chance "
