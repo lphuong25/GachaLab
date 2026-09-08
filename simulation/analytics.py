@@ -1,5 +1,6 @@
 from .game import GachaGame
 from .probability import probability_with_pity
+from .gacha import get_pull_rate
 
 def pulls_from_budget(game: GachaGame, budget: float) -> int:
     """
@@ -41,19 +42,40 @@ def budget_for_probability(
     """
     Find the minimum budget to reach 
     the target probability
+
+    Probability is calculated increamentally by pull count
     """
 
-    budget = 0.0
+    if target_probability <= 0:
+        return 0.0
 
-    while budget <= max_budget:
-        probability = probability_from_budget(game, budget)
+    if target_probability > 1:
+        return 0.0
+
+    max_pulls = pulls_from_budget(
+        game,
+        max_budget
+    )
+
+    probability_of_no_ssr = 1.0
+
+    for pull in range(1, max_pulls + 1):
+        rate = get_pull_rate(
+            base_rate=game.base_rate,
+            pull_number=pull,
+            soft_pity=game.soft_pity,
+            soft_rate=game.soft_rate,
+            hard_pity=game.hard_pity
+        )
+
+        probability_of_no_ssr *= (1 - rate)
+
+        probability = 1 - probability_of_no_ssr
 
         if probability >= target_probability:
-            return budget
-
-        budget += game.cost_per_pull
-
+            return pull * game.cost_per_pull
     return 0.0
+    
 
 def generate_budget_curve(
         game: GachaGame,

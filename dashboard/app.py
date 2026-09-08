@@ -88,7 +88,7 @@ st.header("Pulling Budget")
 saved_pulls = st.slider(
     "How many pulls have you already saved?",
     min_value=0,
-    max_value=1000,
+    max_value=500,
     value=0,
     step=1
 )

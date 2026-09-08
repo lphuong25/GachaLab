@@ -5,7 +5,8 @@ from simulation import (
     get_pull_rate,
     first_ssr_pull,
     monte_carlo,
-    GachaGame
+    GachaGame,
+    generate_probability_curve
 )
 
 def test_basic_probability():
@@ -122,6 +123,22 @@ def test_monte_carlo_mean():
         abs=1.0
     )
 
+def test_probability_curve_with_starting_pity():
+
+    game = GachaGame(
+        name="Test Game",
+        base_rate=0.01,
+        hard_pity=20
+    )
+
+    pulls, probabilities = generate_probability_curve(
+        game,
+        max_pulls=10,
+        starting_pity=10
+    )
+
+    assert probabilities[-1] == pytest.approx(1.0)
+
 # Test dataclass
 def test_gacha_game():
     game = GachaGame(
@@ -154,3 +171,29 @@ def test_probability_with_starting_pity():
     )
 
     assert probability == pytest.approx(1.0)
+
+def test_probability_curve_matches_probability_function():
+
+    game = GachaGame(
+        name="Test Game",
+        base_rate=0.01,
+        hard_pity=10
+    )
+
+    pulls, probabilities = generate_probability_curve(
+        game,
+        max_pulls=10
+    )
+
+    for pull, probability in zip(
+        pulls,
+        probabilities
+    ):
+        expected = probability_with_pity(
+            game,
+            pull
+        )
+
+        assert probability == pytest.approx(
+            expected
+        )

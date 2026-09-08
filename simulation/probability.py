@@ -58,18 +58,44 @@ def probability_with_pity(
 def generate_probability_curve (
         game: GachaGame,
         max_pulls: int,
-        step: int = 1
+        step: int = 1,
+        starting_pity: int = 0
 ):
+    """
+    Generate SSR probability for a range of pulls
+    
+    This calculate the probability incrementally instead of
+    recalculate the entire probability for every pull
+    """
+
     pulls = []
     probabilities = []
 
-    for total_pulls in range(0, max_pulls + 1, step):
-        probability = probability_with_pity(
-            game, 
-            total_pulls
-        )
+    probability_of_no_ssr = 1.0
 
-        pulls.append(total_pulls)
-        probabilities.append(probability)
+    for total_pulls in range(0, max_pulls + 1):
+
+        if total_pulls == 0:
+            probability = 0.0
+
+        else:
+            current_pity = starting_pity + total_pulls
+
+            rate = get_pull_rate(
+                base_rate=game.base_rate,
+                pull_number=current_pity,
+                soft_pity=game.soft_pity,
+                soft_rate=game.soft_rate,
+                hard_pity=game.hard_pity
+            )
+
+            probability_of_no_ssr *= (1 - rate)
+
+            probability = 1 - probability_of_no_ssr
+
+        if total_pulls % step == 0:
+            pulls.append(total_pulls)
+            probabilities.append(probability)
 
     return pulls, probabilities
+

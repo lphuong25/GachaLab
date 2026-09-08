@@ -1,5 +1,5 @@
 from .game import GachaGame
-from .probability import probability_with_pity
+from .probability import get_pull_rate
 from .analytics import budget_for_probability
 
 """
@@ -12,22 +12,33 @@ def expected_pulls(
 ) -> float:
     """
     Calculate the expected number of pulls for at least 1 SSR
+    
+    This calculate the probability distribution
+    incrementally to avoid repeated probability calculations
     """
     expected = 0.0
+    probability_of_no_ssr = 1.0
 
     for pull in range(1, max_pulls + 1):
-        probability_before = probability_with_pity(
-            game,
-            pull - 1
+
+        rate = get_pull_rate(
+            base_rate=game.base_rate,
+            pull_number=pull,
+            soft_pity=game.soft_pity,
+            soft_rate=game.soft_rate,
+            hard_pity=game.hard_pity
         )
 
-        probability_at_pull = probability_with_pity(
-            game,
-            pull
-        )
-        probability_exact = (probability_at_pull - probability_before)
+        probability_exact = (probability_of_no_ssr * rate)
 
         expected += (pull * probability_exact)
+
+        # Update probability if not having SSR
+        probability_of_no_ssr *= (1- rate)
+
+        # Obtain SSR then no additional pulls matter
+        if probability_of_no_ssr == 0:
+            break
 
     return expected
 
