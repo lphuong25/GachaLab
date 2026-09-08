@@ -81,3 +81,22 @@ def generate_budget_curve(
         budget += step
 
     return budgets, probabilities
+
+def probability_from_pulls(
+        game: GachaGame,
+        pulls: int,
+        starting_pity: int = 0
+) -> float:
+    """
+    Calculate the probability of obtaining at least one SSR
+    from a given number of pulls starting at a given pity
+    """
+
+    if pulls <= 0:
+        return 0.0
+
+    return probability_with_pity(
+        game, 
+        pulls,
+        starting_pity=starting_pity
+    )

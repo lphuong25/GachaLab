@@ -139,3 +139,18 @@ def test_gacha_game():
     assert game.hard_pity == 90
     assert game.cost_per_pull == pytest.approx(2.64)
 
+def test_probability_with_starting_pity():
+
+    game = GachaGame(
+        name="Test Game",
+        base_rate=0.0,
+        hard_pity=90
+    )
+
+    probability = probability_with_pity(
+        game,
+        total_pulls=25,
+        starting_pity=65
+    )
+
+    assert probability == pytest.approx(1.0)

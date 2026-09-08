@@ -16,7 +16,10 @@ from simulation.fairness import (
 
 from simulation.probability import (
     probability_with_pity,
-    generate_probability_curve)
+    generate_probability_curve
+)
+
+from simulation.state import pulls_until_pity
 
 # Page configuration
 st.set_page_config(
@@ -90,6 +93,16 @@ saved_pulls = st.slider(
     step=1
 )
 
+current_pity = st.slider(
+    "Current pity",
+    min_value=0,
+    max_value = selected_game.hard_pity
+        if selected_game.hard_pity > 0
+        else 1000,
+    value=0,
+    step=1
+)
+
 budget = st.slider(
     "How much are you willing to spend?",
     min_value = 0.0,
@@ -107,7 +120,8 @@ total_pulls = saved_pulls + paid_pulls
 
 probability = probability_with_pity(
     selected_game,
-    total_pulls
+    total_pulls,
+    starting_pity=current_pity
 )
 
 col1, col2, col3 = st.columns(3)
@@ -130,8 +144,10 @@ st.metric(
 # Hard pity information
 if selected_game.hard_pity > 0:
 
+    current_pity_after_pulls = current_pity + total_pulls
+
     pulls_to_pity = max(
-        selected_game.hard_pity - total_pulls,
+        selected_game.hard_pity - current_pity_after_pulls,
         0
     )
 
@@ -163,13 +179,13 @@ else:
 if selected_game.hard_pity > 0:
 
     pity_progress = min(
-        total_pulls / selected_game.hard_pity,
+        current_pity_after_pulls / selected_game.hard_pity,
         1.0
     )
 
     st.progress(
         pity_progress,
-        text=f"Pity Progress: {total_pulls} / {selected_game.hard_pity}"
+        text=f"Pity Progress: {current_pity_after_pulls} / {selected_game.hard_pity}"
     )
 
 with st.expander("How does Pulling Budget work?"):

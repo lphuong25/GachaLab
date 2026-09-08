@@ -22,21 +22,30 @@ def probability_at_least_one(rate, pulls):
 """
 Mathematical probability calculate 
 the rate with pity system to get 
-at least 1 SSR within total_pulls
+at least 1 SSR within total_pulls,
+stating from a given pity count
 """
 def probability_with_pity(
         game: GachaGame,
-        total_pulls: int
+        total_pulls: int,
+        starting_pity: int = 0
 ):
+
     if total_pulls <= 0:
         return 0.0
+
+    if starting_pity < 0:
+        starting_pity = 0
 
     probability_of_no_ssr = 1.0
 
     for pull in range(1, total_pulls + 1):
+
+        current_pity = starting_pity + pull
+
         rate = get_pull_rate(
             base_rate=game.base_rate,
-            pull_number=pull,
+            pull_number=current_pity,
             soft_pity=game.soft_pity,
             soft_rate=game.soft_rate,
             hard_pity=game.hard_pity
