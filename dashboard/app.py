@@ -33,21 +33,23 @@ games = load_games("data/gachagame.xlsx")
 results = analyze_all(games)
 scored_results = calculate_fairness_scores(results)
 
-# Title
+# ============================================================
+# Dashboard Header
+# ============================================================
+
 st.title("GachaLab")
-st.subheader("Is this Gacha Game actually fair?")
+st.markdown("### Is this gacha actually fair?")
+
 st.write(
-    "Analyze gacha systems using probability, " \
-    "including pity system, expected cost, and standarize Fairness Score"
+    "Explore how probability, pity systems, and spending affect "
+    "your chances of obtaining an SSR."
 )
 
-# Game Selection option
-st.sidebar.header("Game Selection")
-
+# Game Selection
 game_names = [game.name for game in games]
 
-selected_name = st.sidebar.selectbox(
-    "Choose a game",
+selected_name = st.selectbox(
+    "Select a game",
     game_names
 )
 
@@ -56,61 +58,98 @@ selected_game = next(
     if game.name == selected_name
 )
 
-# Basic game information
-st.header(selected_game.name)
+st.divider()
+
+
+# ============================================================
+# Game Snapshot
+# ============================================================
+
+st.subheader("Game Snapshot")
 
 col1, col2, col3, col4 = st.columns(4)
 
 col1.metric(
     "Base SSR Rate",
-    f"{selected_game.base_rate: .2%}"
+    f"{selected_game.base_rate:.2%}"
 )
 
 col2.metric(
     "Soft Pity",
-    selected_game.soft_pity
+    (
+        f"{selected_game.soft_pity} pulls"
+        if selected_game.soft_pity > 0
+        else "None"
+    )
 )
 
 col3.metric(
     "Hard Pity",
-    selected_game.hard_pity
+    (
+        f"{selected_game.hard_pity} pulls"
+        if selected_game.hard_pity > 0
+        else "None"
+    )
 )
 
 col4.metric(
-    "Cost/Pull",
-    f"${selected_game.cost_per_pull: .2f}"
+    "Cost / Pull",
+    f"${selected_game.cost_per_pull:.2f}"
 )
 
-# Add budget
-st.header("Pulling Budget")
+st.divider()
 
-# Add saved pull and calculate it with the purchased ones
-saved_pulls = st.slider(
-    "How many pulls have you already saved?",
-    min_value=0,
-    max_value=500,
-    value=0,
-    step=1
+
+# ============================================================
+# Pull Planner
+# ============================================================
+
+st.subheader("Plan Your Pulls")
+
+st.write(
+    "Enter the pulls you already have, your current pity, and "
+    "your spending budget to estimate your chance of obtaining "
+    "at least one SSR."
 )
 
-current_pity = st.slider(
-    "Current pity",
-    min_value=0,
-    max_value = selected_game.hard_pity
-        if selected_game.hard_pity > 0
-        else 1000,
-    value=0,
-    step=1
-)
+col1, col2, col3 = st.columns(3)
 
-budget = st.slider(
-    "How much are you willing to spend?",
-    min_value = 0.0,
-    max_value = 1000.0,
-    value = 100.0,
-    step = 5.0
-)
+with col1:
+    saved_pulls = st.slider(
+        "Saved pulls",
+        min_value=0,
+        max_value=500,
+        value=0,
+        step=1,
+        help="Pulls you already have available before spending more money."
+    )
 
+with col2:
+    current_pity = st.slider(
+        "Current pity",
+        min_value=0,
+        max_value=(
+            selected_game.hard_pity
+            if selected_game.hard_pity > 0
+            else 1000
+        ),
+        value=0,
+        step=1,
+        help="Your current pity counter before starting your planned pulls."
+    )
+
+with col3:
+    budget = st.slider(
+        "Spending budget",
+        min_value=0.0,
+        max_value=1000.0,
+        value=100.0,
+        step=5.0,
+        help="How much additional money you are willing to spend."
+    )
+
+
+# Calculate planned pulls
 paid_pulls = pulls_from_budget(
     selected_game,
     budget
@@ -124,26 +163,68 @@ probability = probability_with_pity(
     starting_pity=current_pity
 )
 
+
+# ============================================================
+# Pull Plan Summary
+# ============================================================
+
+st.markdown("#### Your Pull Plan")
+
 col1, col2, col3 = st.columns(3)
 
 col1.metric(
-    "Saved Pulls", saved_pulls
+    "Saved Pulls",
+    saved_pulls
 )
 
 col2.metric(
-    "Paid Pulls", paid_pulls
+    "Paid Pulls",
+    paid_pulls
 )
 
 col3.metric(
-    "Total Pulls", total_pulls
-)
-st.metric(
-    "SSR Probability", f"{probability: .2%}"
+    "Total Planned Pulls",
+    total_pulls
 )
 
-# Hard pity information
+
+# ============================================================
+# SSR Probability
+# ============================================================
+
+st.markdown("#### Your SSR Chance")
+
+st.metric(
+    "Chance of getting at least one SSR",
+    f"{probability:.1%}"
+)
+
+if probability >= 0.90:
+    st.success(
+        f"🟢 High chance — your planned pulls give you a "
+        f"{probability:.1%} chance of obtaining at least one SSR."
+    )
+
+elif probability >= 0.50:
+    st.warning(
+        f"🟡 Moderate chance — your planned pulls give you a "
+        f"{probability:.1%} chance of obtaining at least one SSR."
+    )
+
+else:
+    st.error(
+        f"🔴 Low chance — your planned pulls give you only a "
+        f"{probability:.1%} chance of obtaining at least one SSR."
+    )
+
+
+# ============================================================
+# Pity Progress
+# ============================================================
+
 if selected_game.hard_pity > 0:
 
+    # This represents maximum pity progress if no SSR is obtained.
     current_pity_after_pulls = current_pity + total_pulls
 
     pulls_to_pity = max(
@@ -153,19 +234,38 @@ if selected_game.hard_pity > 0:
 
     cost_to_pity = pulls_to_pity * selected_game.cost_per_pull
 
+    st.markdown("#### Pity Progress")
+
+    pity_progress = min(
+        current_pity_after_pulls / selected_game.hard_pity,
+        1.0
+    )
+
+    st.progress(
+        pity_progress,
+        text=(
+            f"{min(current_pity_after_pulls, selected_game.hard_pity)} "
+            f"/ {selected_game.hard_pity} pulls"
+        )
+    )
+
     if pulls_to_pity == 0:
         st.success(
-            "🎉 You have reached the hard pity threshold!"
+            "🎉 Your planned pulls can reach the hard pity threshold "
+            "if no SSR is obtained first."
         )
     else:
-        st.info(
-            f"You are {pulls_to_pity} pulls away "
-            f"from hard pity."
+
+        col1, col2 = st.columns(2)
+
+        col1.metric(
+            "Pulls Until Hard Pity",
+            pulls_to_pity
         )
 
-        st.write(
-            f"Estimated additional cost to reach hard pity: "
-            f"**${cost_to_pity:.2f}**"
+        col2.metric(
+            "Additional Cost to Reach Pity",
+            f"${cost_to_pity:.2f}"
         )
 
 else:
@@ -175,34 +275,29 @@ else:
         "in the current dataset."
     )
 
-# Progress bar
-if selected_game.hard_pity > 0:
 
-    pity_progress = min(
-        current_pity_after_pulls / selected_game.hard_pity,
-        1.0
-    )
+# ============================================================
+# Pull Planner Explanation
+# ============================================================
 
-    st.progress(
-        pity_progress,
-        text=f"Pity Progress: {current_pity_after_pulls} / {selected_game.hard_pity}"
-    )
-
-with st.expander("How does Pulling Budget work?"):
+with st.expander("How does the Pull Planner work?"):
 
     st.write(
         """
-        Pulling Budget combines pulls you have already saved
-        with pulls you purchase from your budget.
+        **Saved pulls** are pulls you already have available.
 
-        Total Pulls = Saved Pulls + Paid Pulls
+        **Paid pulls** are the number of pulls your spending budget
+        can purchase based on the game's cost per pull.
 
-        The resulting total is then used to calculate your
-        probability of obtaining at least one SSR.
+        **Total planned pulls** are calculated as:
 
-        If the game has a hard pity system, GachaLab also
-        calculates how many additional pulls and how much
-        money would be required to reach the hard pity threshold.
+        **Saved Pulls + Paid Pulls**
+
+        GachaLab then uses your total planned pulls and current pity
+        to estimate your probability of obtaining at least one SSR.
+
+        Pity progress shows the maximum pity you could reach if you
+        do not obtain an SSR before reaching the hard pity threshold.
         """
     )
 
@@ -233,37 +328,125 @@ selected_result = next(
 
 st.header("GachaLab Fairness Score")
 
-st.metric(
-    "Fairness Score",
-    f"{selected_result['fairness_score']: .2f} / 100"
-)
+# ============================================================
+# Fairness Score
+# ============================================================
 
-st.write(
-    "The GachaLab Fairness Score measures how favorable a game's "
-    "gacha system is relative to the other games in the dataset. "
-    "Lower costs receive higher scores."
-)
+st.divider()
+
+st.subheader("Is This Gacha Fair?")
+
+fairness_score = selected_result["fairness_score"]
+
+# Determine a simple interpretation of the score
+if fairness_score >= 80:
+    fairness_label = "Relatively Favorable"
+    fairness_message = (
+        "This game scores relatively well compared with "
+        "the other games in the GachaLab dataset."
+    )
+elif fairness_score >= 60:
+    fairness_label = "Moderate"
+    fairness_message = (
+        "This game falls around the middle of the games "
+        "analyzed by GachaLab."
+    )
+else:
+    fairness_label = "Relatively Expensive"
+    fairness_message = (
+        "This game scores relatively poorly compared with "
+        "the other games in the GachaLab dataset."
+    )
+
+
+# Main score
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    st.metric(
+        "GachaLab Fairness Score",
+        f"{fairness_score:.1f} / 100"
+    )
+
+with col2:
+    st.markdown(f"### {fairness_label}")
+    st.write(fairness_message)
+
+
+# ------------------------------------------------------------
+# Fairness Metrics
+# ------------------------------------------------------------
+
+st.markdown("#### What Drives the Score?")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Expected Cost",
+        f"${selected_result['expected_cost']:.2f}"
+    )
+
+with col2:
+    target_90_cost = selected_result["target_cost"]["90%"]
+
+    st.metric(
+        "Cost for 90% Chance",
+        f"${target_90_cost:.2f}"
+    )
+
+with col3:
+    worst_case = selected_result["worst_case_cost"]
+
+    if worst_case is None:
+        st.metric(
+            "Worst-Case Cost",
+            "No hard pity"
+        )
+    else:
+        st.metric(
+            "Worst-Case Cost",
+            f"${worst_case:.2f}"
+        )
+
+
+# ------------------------------------------------------------
+# Score Explanation
+# ------------------------------------------------------------
 
 with st.expander("How is the Fairness Score calculated?"):
-    st.write("""
-    The Fairness Score is based on three factors:
 
-    • Expected Cost = 40%
-    
-    How much a player is expected to spend to obtain an SSR.
+    st.write(
+        """
+        The GachaLab Fairness Score is a relative score that compares
+        gacha systems across the games in the current dataset.
 
-    • 90% Success Cost = 40%
-    
-    How much a player needs to spend to have a 90% chance of
-    obtaining at least one SSR.
+        A lower estimated cost receives a higher score.
 
-    • Worst-Case Cost = 20%
-    
-    The maximum amount a player would need to spend before
-    reaching the hard pity guarantee.
+        The score currently considers three factors:
+        """
+    )
 
-    Lower costs result in higher scores.
-    """)
+    st.markdown(
+        """
+        - **Expected Cost — 40%**  
+          Estimated spending required to obtain an SSR on average.
+
+        - **90% Success Cost — 40%**  
+          Estimated spending required to reach a 90% chance of
+          obtaining at least one SSR.
+
+        - **Worst-Case Cost — 20%**  
+          Maximum spending required to reach hard pity, when the
+          game has a hard pity system.
+        """
+    )
+
+    st.info(
+        "The Fairness Score is relative to the games and assumptions "
+        "in GachaLab's dataset. It is not an objective measure of "
+        "whether a game is universally fair or unfair."
+    )
 
 # display components
 st.subheader("Fairness Metrics")
@@ -291,66 +474,88 @@ else:
         "No hard pity"
     )
 
-# Generate probability chart 
-st.header("SSR Probability by Pulls")
+# ============================================================
+# Probability Analysis
+# ============================================================
+
+st.divider()
+
+st.subheader("Probability Analysis")
+
+st.write(
+    "See how your chance of obtaining at least one SSR changes "
+    "as you make more pulls."
+)
+
+max_pulls = (
+    selected_game.hard_pity
+    if selected_game.hard_pity > 0
+    else 300
+)
 
 pulls, probabilities = generate_probability_curve(
     selected_game,
-    max_pulls=selected_game.hard_pity
-        if selected_game.hard_pity > 0 
-        else 300,
-    step = 1
+    max_pulls=max_pulls,
+    step=1
 )
 
-probability_df = pd.DataFrame({
-    "Pulls": pulls,
-    "SSR Probability": probabilities
-})
+
+# ------------------------------------------------------------
+# Find Pull Thresholds
+# ------------------------------------------------------------
+
+thresholds = {
+    "50% Chance": 0.50,
+    "75% Chance": 0.75,
+    "90% Chance": 0.90,
+    "95% Chance": 0.95
+}
+
+threshold_pulls = {}
+
+for label, target in thresholds.items():
+
+    required_pulls = None
+
+    for pull, probability_value in zip(
+        pulls,
+        probabilities
+    ):
+        if probability_value >= target:
+            required_pulls = pull
+            break
+
+    threshold_pulls[label] = required_pulls
+
+# ------------------------------------------------------------
+# Probability Chart
+# ------------------------------------------------------------
 
 fig = px.line(
-    probability_df,
-    x="Pulls",
-    y="SSR Probability",
-    title=f"{selected_game.name}'s SSR Probability"
-)
-
-# Adding horizontal reference lines for each threshold
-fig.add_hline(
-    y=0.50,
-    line_dash="dash",
-    line_color="red",
-    annotation_text="50%"
-)
-
-fig.add_hline(
-    y=0.75,
-    line_dash="dash",
-    line_color="red",
-    annotation_text="75%"
-)
-
-fig.add_hline(
-    y=0.90,
-    line_dash="dash",
-    line_color="red",
-    annotation_text="90%"
-)
-
-fig.add_hline(
-    y=0.95,
-    line_dash="dash",
-    line_color="red",
-    annotation_text="95%"
+    x=pulls,
+    y=probabilities,
+    labels={
+        "x": "Number of Pulls",
+        "y": "Chance of ≥1 SSR"
+    },
+    title="Chance of Getting at Least One SSR"
 )
 
 fig.update_yaxes(
-    tickformat = ".0%",
-    range = [0, 1]
+    tickformat=".0%",
+    range=[0, 1]
 )
 
 fig.update_layout(
-    xaxis_title = "Number of Pulls",
-    yaxis_title = "Probability of at least one SSR"
+    hovermode="x unified"
+)
+
+fig.update_traces(
+    hovertemplate=(
+        "Pulls: %{x}<br>"
+        "SSR Chance: %{y:.1%}"
+        "<extra></extra>"
+    )
 )
 
 st.plotly_chart(
@@ -358,33 +563,55 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# Cost of reaching each threshold
-st.header("Cost to Reach an SSR Probability")
+# ------------------------------------------------------------
+# Probability Thresholds
+# ------------------------------------------------------------
 
-selected_result = next(
-    result for result in scored_results
-    if result["name"] == selected_game.name
-)
-
-target_costs = selected_result["target_cost"]
+st.markdown("#### Pulls Needed to Reach Each Probability")
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric(
-    "50% Chance", f"${target_costs['50%']:.2f}"
-)
+columns = [col1, col2, col3, col4]
 
-col2.metric(
-    "75% Chance", f"${target_costs['75%']:.2f}"
-)
+for column, (label, required_pulls) in zip(
+    columns,
+    threshold_pulls.items()
+):
 
-col3.metric(
-    "90% Chance", f"${target_costs['90%']:.2f}"
-)
+    with column:
 
-col4.metric(
-    "95% Chance", f"${target_costs['95%']:.2f}"
-)
+        if required_pulls is None:
+            st.metric(
+                label,
+                "Not reached"
+            )
+        else:
+            st.metric(
+                label,
+                f"{required_pulls} pulls"
+            )
+
+if selected_game.soft_pity > 0:
+
+    st.info(
+        f"Soft pity begins after approximately "
+        f"{selected_game.soft_pity} pulls in this model. "
+        f"The SSR probability increases as you approach hard pity."
+    )
+
+elif selected_game.hard_pity > 0:
+
+    st.info(
+        f"This game has a hard pity at "
+        f"{selected_game.hard_pity} pulls in the current model."
+    )
+
+else:
+
+    st.info(
+        "No soft or hard pity system is currently modeled "
+        "for this game."
+    )
 
 # Game comparision chart
 st.header("Fairness Comparision")
