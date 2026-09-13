@@ -1,5 +1,5 @@
 from .game import GachaGame
-from .probability import get_pull_rate
+from .gacha import get_pull_rate
 from .analytics import budget_for_probability
 
 """

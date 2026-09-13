@@ -301,32 +301,12 @@ with st.expander("How does the Pull Planner work?"):
         """
     )
 
-# Probability verdict message
-if probability >= 0.90:
-    st.success(
-        f"With ${budget:.2f}, you have a {probability:.1%} chance "
-        f"of getting at least one SSR"
-    )
-
-elif probability >= 0.50:
-    st.warning(
-        f"With ${budget:.2f}, you have a {probability:.1%} chance "
-        f"of getting at least one SSR"
-    )
-else:
-    st.error(
-        f"With ${budget:.2f}, you only have a {probability:.1%} chance "
-        f"of getting at least one SSR"        
-    )
-
 # Show Fairness Score
 selected_result = next(
     result
     for result in scored_results
     if result["name"] == selected_game.name
 )
-
-st.header("GachaLab Fairness Score")
 
 # ============================================================
 # Fairness Score
@@ -448,31 +428,6 @@ with st.expander("How is the Fairness Score calculated?"):
         "whether a game is universally fair or unfair."
     )
 
-# display components
-st.subheader("Fairness Metrics")
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric(
-    "Expected Cost",
-    f"${selected_result['expected_cost']:.2f}"
-)
-
-col2.metric(
-    "Cost for 90% Chance",
-    f"${selected_result['target_cost']['90%']:.2f}"
-)
-
-if selected_result["worst_case_cost"] is not None:
-    col3.metric(
-        "Worst-Case Cost",
-        f"${selected_result['worst_case_cost']:.2f}"
-    )
-else:
-    col3.metric(
-        "Worst-Case Cost",
-        "No hard pity"
-    )
 
 # ============================================================
 # Probability Analysis
@@ -614,7 +569,7 @@ else:
     )
 
 # Game comparision chart
-st.header("Fairness Comparision")
+st.header("Compare Games")
 
 show_games = st.multiselect(
     "Compare games",
@@ -631,32 +586,36 @@ comparison_df = pd.DataFrame([
     if result["name"] in show_games
 ])
 
-comparison_df = comparison_df.sort_values(
+if comparison_df.empty:
+    st.info("Select at least one game to compare.")
+
+else:
+    comparison_df = comparison_df.sort_values(
     "Fairness Score",
     ascending=True
 )
 
-fig_comparision = px.bar(
-    comparison_df,
-    x="Fairness Score",
-    y="Game",
-    orientation="h",
-    title="GachaLab Fairness Score by Game"
-)
+    fig_comparision = px.bar(
+        comparison_df,
+        x="Fairness Score",
+        y="Game",
+        orientation="h",
+        title="GachaLab Fairness Score by Game"
+    )
 
-fig_comparision.update_xaxes(
-    range=[0, 100]
-)
+    fig_comparision.update_xaxes(
+        range=[0, 100]
+    )
 
-fig_comparision.update_layout(
-    xaxis_title = "Fairness Score",
-    yaxis_title="Game"
-)
+    fig_comparision.update_layout(
+        xaxis_title = "Fairness Score",
+        yaxis_title="Game"
+    )
 
-st.plotly_chart(
-    fig_comparision,
-    use_container_width=True
-)
+    st.plotly_chart(
+        fig_comparision,
+        use_container_width=True
+    )
 
 score = selected_result["fairness_score"]
 
