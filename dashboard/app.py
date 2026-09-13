@@ -1,3 +1,12 @@
+import sys
+from pathlib import Path
+
+# Project root: GachaLab/
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -28,7 +37,9 @@ st.set_page_config(
 )
 
 # Load data
-games = load_games("data/gachagame.xlsx")
+games = load_games(
+    PROJECT_ROOT / "data" / "gachagame.xlsx"
+)
 
 results = analyze_all(games)
 scored_results = calculate_fairness_scores(results)
