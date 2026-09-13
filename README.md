@@ -8,7 +8,7 @@ The application uses the public rate of obtaining an SSR, pity mechanism, and co
 
 The project also includes Fairness Score that calculate and compare gacha system between games using expected cost, 90% cost, and worst-case cost
 
-**Live Demo**:
+**Live Demo**: https://gachalab.streamlit.app/
 
 -------------
 
